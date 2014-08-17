@@ -1,0 +1,109 @@
+US National Weather Service Storm Data. Impact on population health and economic consequences
+========================================================
+# Synopsis  
+In this analysis we process the data regarding US severe ewather events that 
+can cause public health and economic problems. These events can have a 
+significant cost in human fatalities and injuries as well as property damage and
+other financial consequences. We start by downloading online the NOOA database 
+from: https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2.
+We continue by cleaning our data and aggregating to find the Event Types with
+the most important outcomes. We present our results using plots. The analysis
+was performed with version 0.98.501 of RStudia on Windows 8 x64
+
+
+
+# Data Processing  
+
+### Download initial datafile 
+```{r cache=TRUE}
+myurl <- "http://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+download.file(url=myurl, destfile="StormData.csv.bz2")
+```
+
+### Extract csv file and read into a dataframe variable
+```{r cache=TRUE}
+extracted.file<-bzfile("StormData.csv.bz2")
+mydata<-read.csv(extracted.file)
+```
+### Have a first glance at data
+```{r cache=TRUE}
+str(mydata)
+names(mydata)
+```
+
+### For our analysis we are interested only in the following columns:  
+EVTYPE, FATALITIES, INJURIES, PROPDMG, PROPDMGEXP, CROPDMG, CROPDMGEXP
+### So we create a new data frame containing only these columns
+
+```{r cache=TRUE}
+keep<-c("EVTYPE","FATALITIES", "INJURIES","PROPDMG","PROPDMGEXP","CROPDMG","CROPDMGEXP")
+mydata2<-mydata[keep]
+names(mydata2)
+```
+
+### Now we focus in the EVTYPE column
+```{r cache=TRUE}
+len<-length(unique(mydata2$EVTYPE))
+print(len)
+```
+### So we have `r len` different event types
+### Let's convert column to uppercase
+```{r cache=TRUE}
+mydata2$EVTYPE<-toupper(mydata2$EVTYPE)
+len2<-length(unique(mydata2$EVTYPE))
+print(len2)
+```
+### We see that we managed to reduce the different event types to `r len2`
+
+### Event type has values like **"TORNADO F2"** and **"TORNADO F3"** so we consolidate these values 
+```{r cache=TRUE}
+mydata2$EVTYPE[grep("TORNADO", mydata2$EVTYPE)] <- "TORNADO"
+mydata2$EVTYPE[grep("FLOOD", mydata2$EVTYPE)] <- "FLOOD"
+mydata2$EVTYPE[grep("RAIN", mydata2$EVTYPE)] <- "RAIN"
+mydata2$EVTYPE[grep("FIRE", mydata2$EVTYPE)] <- "FIRE"
+mydata2$EVTYPE[grep("HEAT", mydata2$EVTYPE)] <- "HEAT"
+mydata2$EVTYPE[grep("SNOW", mydata2$EVTYPE)] <- "SNOW"
+mydata2$EVTYPE[grep("WIND", mydata2$EVTYPE)] <- "WIND"
+mydata2$EVTYPE[grep("COLD", mydata2$EVTYPE)] <- "COLD"
+mydata2$EVTYPE[grep("THUNDERSTORM", mydata2$EVTYPE)] <- "THUNDERSTORM"
+mydata2$EVTYPE[grep("HAIL", mydata2$EVTYPE)] <- "HAIL"
+mydata2$EVTYPE[grep("ICE", mydata2$EVTYPE)] <- "ICE"
+mydata2$EVTYPE[grep("HURRICANE", mydata2$EVTYPE)] <- "HURRICANE"
+
+
+len3<-length(unique(mydata2$EVTYPE))
+print(len3)
+```
+### Now we managed to reduce the different event types to `r len3`
+
+### Aggregate by Event type to get sum by injuries and fatalities
+```{r cache=TRUE}
+library(plyr)
+groupByInjuries<-ddply(mydata2,~EVTYPE,summarise,sum=sum(INJURIES))
+groupByInjuries<-groupByInjuries[groupByInjuries$sum>0,]
+groupByInjuries$EVTYPE<-factor(groupByInjuries$EVTYPE)
+
+groupByFatalities<-ddply(mydata2,~EVTYPE,summarise,sum=sum(FATALITIES))
+groupByFatalities<-groupByFatalities[groupByFatalities$sum>0,]
+groupByFatalities$EVTYPE<-factor(groupByFatalities$EVTYPE)
+```
+
+# Results
+### Order the grouped datasets and plot to find the most harmful event types
+
+```{r}
+groupByInjuries<-groupByInjuries[order(groupByInjuries$sum,decreasing=T),]
+groupByInjuries2<-groupByInjuries[1:10,]
+with(groupByInjuries2,plot(EVTYPE,sum,
+                          main="Total injuries by event type",
+                          col="darkred"))
+
+groupByFatalities<-groupByFatalities[order(groupByFatalities$sum,decreasing=T),]
+groupByFatalities<-groupByFatalities[1:10,]
+with(groupByFatalities,plot(EVTYPE,sum,
+                          main="Total fatalities by event type",
+                          col="darkred"))
+
+```
+
+### Therefore tornados have the most impact on fatalities and injuries
